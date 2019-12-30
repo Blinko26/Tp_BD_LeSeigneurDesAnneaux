@@ -1,4 +1,4 @@
---Partie 2
+---Partie 2
 
 CREATE TABLE TYPE (
    nomType TEXT,
