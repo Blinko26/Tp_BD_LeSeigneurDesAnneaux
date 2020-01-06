@@ -239,3 +239,20 @@ group by p.nomPers having count(distinct c.numlivre)=3;
 -- Planning Time: 0.163 ms
 -- Execution Time: 2.301 ms
 --(19 rows)
+
+--3.INSERT
+
+INSERT INTO Personne VALUES ('Baptiste','nain',1493);
+INSERT INTO Caractere VALUES('Baptiste','agonisant',0.01,2,1);
+
+INSERT INTO PERSONNAGES VALUES ('Baptiste', 'nain', 1493, 100, 'no', 'agonisant', 0.01, 2, 1, 'Le pont du destion de Gondor');
+
+--4.UPDATE
+UPDATE type set tailleMoy = 1200, imberbe = 'yes' where nomType = 'hobbit';
+
+UPDATE PERSONNAGES set tailleMoy = 1200, imberbe = 'yes' where nomType = 'hobbit';
+--5.DELETE
+
+DELETE From CARACTERE where numChap = '13' AND numLivre = '3';
+
+DELETE FROM Personnages where  numChap = '13' AND numLivre = '3';
