@@ -256,3 +256,113 @@ UPDATE PERSONNAGES set tailleMoy = 1200, imberbe = 'yes' where nomType = 'hobbit
 DELETE From CARACTERE where numChap = '13' AND numLivre = '3';
 
 DELETE FROM Personnages where  numChap = '13' AND numLivre = '3';
+
+--Partie 3
+
+--1.
+
+--Exemple de Lecture impropre
+-- La mise à jour ne devrait pas être prise en compte.
+--La valeur lue par user2 est incorrecte.
+--Cette valeur est dite impropre (user2 lit des données non confirmées)
+
+--user1
+--User1 fait une modification dans la table Personne
+begin;
+UPDATE Personne set nomtype ='nain' where nompers='Baptiste';
+--On constate que la modifictaion a été effectuée.
+select * from Personne where nompers='Baptiste';
+--user2
+--user2 voit la modification
+select * from Personne where nompers='Baptiste';
+--user1
+--user1 annule la modificaton sur la table Personne
+ROLLBACK;
+
+--user2 a donc lue une valeur incorrecte.
+
+--2.
+--Exemple de Perte de mise à jour
+-- Il y a perte de mise à jour lorsque user2 viens écraser les modifications de user1
+--user1
+--On commence la transaction
+begin;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+select * from type where nomType='hobbit';
+--user2
+--On commence la transaction
+begin;
+select * from type where nomType ='hobbit';
+--user1
+--user1 modifie la table type et valide la nouvelle valeur
+UPDATE type set taillemoy= taillemoy+10 where nomtype = 'hobbit';
+COMMIT;
+--user2
+--user2 viens modifier la table annulant la modification précédente.
+UPDATE type set taillemoy= taillemoy+30 where nomtype = 'hobbit';
+select * from type where nomType ='hobbit';
+COMMIT;
+--user1
+select * from type where nomType ='hobbit';
+--user2
+select * from type where nomType ='hobbit';
+
+--La modification effectuée par user1 a été écrasée par user2 qui a aussi effectué une modification sur la même table.
+
+--3.
+--Exemple de lecture non reproductible
+--L'user1 lit plusieurs fois la même valeur. On s'attend donc à retrouver la même valeur.
+--Or il ne retrouve pas la même valeur car entre les deux lectures la valeur a été modifiée.
+--L'user1 va lire taillemoy = 90 et la deuxième fois il aura 100 même si rien ne ce passe entre ces deux moments
+--là. Il y a donc un problème de lecture non reproductible.
+
+--user1
+--On démarre la transaction
+begin;
+select * from type where nomType='hobbit';
+--user2
+--User2 lit une valeur A
+select * from type where nomType='hobbit';
+--user1
+--user1 modifie la valeur A
+UPDATE type set taillemoy= taillemoy+10 where nomtype = 'hobbit';
+--user2
+--user2 n'ayant pas modifié la valeur A s'attend à retrouver la même
+--Or la valeur A a changé.
+select * from type where nomType='hobbit';
+--user1
+commit;
+--user2
+select * from type where nomType='hobbit';
+
+
+--4.
+--Exemple d'interblocage
+--Un interblocage correspond à un état où deux transaction attende que l'autre est finie. C'est à dire que chacune a bloqué une table nécessaire pour l'autre.
+--Elles sont alors dans l'incapacité de se finir.
+
+--user1
+--user1 commence la transactions
+begin;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+select * from type where nomType='hobbit';
+--user2
+--user2 commence la transaction
+begin;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+select * from type where nomType='hobbit';
+--user1
+-- La table Personne est vérouillée par user1
+UPDATE personne set nomtype = 'hobbit' where nompers = 'Baptiste';
+--user2
+UPDATE Caractere set traitCar = 'agonisant' where nompers = 'Baptiste';
+--La table Personne est vérouillée.
+--user1
+--La table Caractere étant vérouillée user1 attend que user2 ai finis.
+UPDATE Caractere set traitCar = 'Heureux' where nompers = 'Baptiste';
+--user2
+--La table Personne étant vérouillée user2 attend que user1 ai finis.
+UPDATE personne set nomtype = 'elfe' where nompers = 'Baptiste';
+
+--Nous sommes dans un cas d'interblocage. Les deux users attendent que l'autre ai finis.
+--Ces transactions finiront jamais, il y a donc un problème.
