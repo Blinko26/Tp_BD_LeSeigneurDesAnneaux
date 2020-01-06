@@ -253,10 +253,15 @@ UPDATE type set tailleMoy = 1200, imberbe = 'yes' where nomType = 'hobbit';
 UPDATE PERSONNAGES set tailleMoy = 1200, imberbe = 'yes' where nomType = 'hobbit';
 --5.DELETE
 
-DELETE From CARACTERE where numChap = '13' AND numLivre = '3';
+DELETE FROM PERSONNAGES where nompers in (select nompers from personnages where numChap = '13' AND numLivre = '3');
 
-DELETE FROM Personnages where  numChap = '13' AND numLivre = '3';
+CREATE VIEW PersonneASuppr AS
+SELECT nomPers
+FROM PERSONNE
+WHERE nompers in (select nomPers from Personne where nomPers in (select nomPers from caractere where numChap = '13' AND numLivre = '3');
 
+DELETE FROM Caractere where nomPers in (select nomPers from PersonneASuppr);
+delete from personne where nompers not in (select nompers from caractere);
 --Partie 3
 
 --1.
@@ -273,7 +278,7 @@ UPDATE Personne set nomtype ='nain' where nompers='Baptiste';
 --On constate que la modifictaion a été effectuée.
 select * from Personne where nompers='Baptiste';
 --user2
---user2 voit la modification
+--user2 devrait voir la modification.
 select * from Personne where nompers='Baptiste';
 --user1
 --user1 annule la modificaton sur la table Personne
@@ -296,11 +301,13 @@ select * from type where nomType ='hobbit';
 --user1
 --user1 modifie la table type et valide la nouvelle valeur
 UPDATE type set taillemoy= taillemoy+10 where nomtype = 'hobbit';
-COMMIT;
 --user2
 --user2 viens modifier la table annulant la modification précédente.
 UPDATE type set taillemoy= taillemoy+30 where nomtype = 'hobbit';
 select * from type where nomType ='hobbit';
+--user1
+COMMIT;
+--user2
 COMMIT;
 --user1
 select * from type where nomType ='hobbit';
@@ -326,13 +333,10 @@ select * from type where nomType='hobbit';
 --user1
 --user1 modifie la valeur A
 UPDATE type set taillemoy= taillemoy+10 where nomtype = 'hobbit';
+commit;
 --user2
 --user2 n'ayant pas modifié la valeur A s'attend à retrouver la même
 --Or la valeur A a changé.
-select * from type where nomType='hobbit';
---user1
-commit;
---user2
 select * from type where nomType='hobbit';
 
 
@@ -366,3 +370,12 @@ UPDATE personne set nomtype = 'elfe' where nompers = 'Baptiste';
 
 --Nous sommes dans un cas d'interblocage. Les deux users attendent que l'autre ai finis.
 --Ces transactions finiront jamais, il y a donc un problème.
+
+--5.
+--Pour résoudre les trois problèmes suivant Lecture Impropre, Perte de mise à jour et lecture non reproductible
+--il faut faire une éxécution séquentielle. En effet exécuter les transactions l'une après l'autre afin d'éviter ces problèmes.
+--interblocage(DeadLock) :
+    --Il faudrait demander tout les verrous en même temps ou demander les verrous dans un ordre donné
+    --En cas d'interblocage il faudrait arrêter une des deux transactions (Ce que fait déjà posgresql).
+
+--Pour le reste simplement réaliser des transactions avec un begin et un commit / rollback suffit amplement. en effet postgresql gère déjà tout ces problèmes.
