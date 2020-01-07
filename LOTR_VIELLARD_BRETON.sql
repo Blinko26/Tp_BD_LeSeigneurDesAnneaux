@@ -74,7 +74,7 @@ select P.nomPers, P.anNaiss, C.traitCar, C.coefCar from personne P, caractere C 
 --==> Le coût de requete R1 sur la table personnages est plus faible que celui sur la relation normalisé mais de trop peu pour le prendre en compte.
 --Width correspond à la taille d'une ligne retourné par la requête.
 --On remarque que entre les deux requetes la valeur de width a presque doublé car le query selectionne toutes les valeurs des deux tables personne et caractere.
---La jointure a un width assez haut en comparaison des accès séquentiels.
+--La jointure a une valeur width assez haute en comparaison des accès séquentiels.
 
 --R2
 
@@ -94,7 +94,7 @@ where nomPers = 'Frodon';
 --(7 rows)
 
 -- Cette requête va parcourir l'index personnages_pkey avec la condition nompers='Frodon' avant de revérifier cette condition grâce à un Heap Scan.
--- Ceci a pour affet de parcourir très peu de lignes et donc, par conséquent, d'avoir un temps d'exécution extrêmement faible.
+-- Ceci a pour effet de parcourir très peu de lignes et donc, par conséquent, d'avoir un temps d'exécution extrêmement faible.
 
 select L.numChap, L.numLivre, L.titre
 from Livre L, caractere C
@@ -137,6 +137,9 @@ select count(distinct nomPers) as nombrePersonnages from personnages;
 -- Execution Time: 0.938 ms
 --(4 rows)
 
+-- La requête va utiliser la fonction d'agrégation count() sur l'accès séquentiel de la table personnages afin de pouvoir compter chaque nompers.
+-- Celle-ci devra parcourir chaque ligne de la BDD lors de l'accès séquentiel, ce qui obligera la requête à parcourir plus de lignes et donc à avoir un coût plus important.
+
 select count(*) as nombrePersonnages from personne;
 
 --QUERY PLAN
@@ -146,6 +149,10 @@ select count(*) as nombrePersonnages from personne;
 -- Planning Time: 0.057 ms
 -- Execution Time: 0.066 ms
 --(4 rows)
+
+-- La requête va utiliser la fonction d'agrégation count() sur l'accès séquentiel de la table personne afin de pouvoir compter chaque nompers.
+-- Le nombre de lignes à parcourir est largement inférieur à celui de la requête sur la table personnages, ce qui entraîne un coût inférieur.
+-- Malgré tout, on remarque qu'il y a très peu d'écarts au niveau du temps d'exécution de chacun des deux requêtes.
 
 --R4
 
@@ -169,6 +176,11 @@ select distinct p1.nomPers from personnages p1 where 1<(select count(distinct p2
 --Execution Time: 50.508 ms
 --(14 rows)
 
+-- La requête va devoir effectuer plusieurs opérations sur la base de données afin de récupérer les bons résultats.
+-- Elle devra utiliser la fonction "Unique" afin de trier les différents personnages. Cela représente un coût important malgré le faible nombre de lignes à parcourir.
+-- Il faut également utiliser l'index personnages_pkey afin de récupérer les personnages respectant la condition. Ce tri a pour effet de supprimer 5 lignes.
+-- Enfin, la requête devra utiliser la fonction d'agrégation count() ainsi que l'index personnages_pkey pour la condition p1.nompers=nomPers sur la table personnages p2.
+-- Ceci ne coûte pas très cher car le nombre de lignes parcourues est très faible.
 
 select nomPers from caractere group by nomPers having count(distinct numlivre)>1;
 
@@ -186,6 +198,10 @@ select nomPers from caractere group by nomPers having count(distinct numlivre)>1
 --Execution Time: 1.683 ms
 --(10 rows)
 
+-- Cette requête va utiliser un accès séquentiel sur la table caractère afin de parcourir chaque ligne.
+-- Elle va de plus utiliser "Sort" afin de trier les différentes lignes en fonction de l'attribut nomPers.
+-- Enfin, la requête va regrouper les différentes lignes en fonction de nomPers et vérifier la condition "(count(DISTINCT numlivre)>1)"
+-- Le nombre de lignes à parcourir est plus grand pour cette requête mais les actions requises sur la BDD coûte moins cher, ce qui fait que le temps mis par cette requête est très nettement inférieur à celui de la précédente requête.
 
 --R5
 
@@ -213,6 +229,13 @@ where 3=(select count(distinct p2.numLivre) from personnages p2 where p1.nomPers
 --Execution Time: 55.215 ms
 --(16 rows)
 
+-- Cette requête va utiliser l'index personnages_pkey avec la condition p1.nompers=p2.nompers ainsi que la fonction d'agrégation count() afin de trier les lignes à renvoyer en résultat.
+-- Elle va également utiliser un accès séquentiel sur la table personnages qui va être particulièrement coûteux en terme de temps, du fait que le filtre fait lors de l'accès séquentiel a permis d'éliminer 1679 lignes de la liste des potentiels résultats.
+-- Enfin, la requête va trier les résultats en fonction des attributs nompers, nomtype et annaiss tout en vérifiant que chacune de ces lignes est unique.
+
+-- La requête a un coût particulièrement important à cause de l'accès séquentiel ainsi que de sa condition, qui représente la très grande majorité de coût de cette requête.
+-- Malgré tout, cette requête permet de parcourir peu de lignes.
+
 select distinct p.nomPers, p.nomType, p.anNaiss from personne p, caractere c
 where p.nomPers = c.nomPers
 group by p.nomPers having count(distinct c.numlivre)=3;
@@ -239,6 +262,15 @@ group by p.nomPers having count(distinct c.numlivre)=3;
 -- Planning Time: 0.163 ms
 -- Execution Time: 2.301 ms
 --(19 rows)
+
+-- La requête va réaliser deux accès séquentiels, le premier sur la table personne et le second sur la table caractère, afin de pouvoir réaliser une jointure ayant pour condition caractère.nompers=personne.nompers
+-- Celle-ci va également trier puis regrouper les résultats tout en filtrant ceux-ci grâce à la condition "(count(DISTINCT c.numlivre)=3)"
+-- Enfin, elle va trier les résultats en fonction des attributs nompers, nomtype et annaiss de la table Personne tout en vérifiant que ces lignes ne se répète pas.
+
+-- Ces différentes opérations obligent la requête à parcourir de nombreuses lignes dans la BDD, notamment lors des accès séquentiels.
+-- Malgré tout, ceux-ci sont assez peu coûteux car les différentes conditions sont réalisées lors de plusieurs petites opérations.
+
+-- Par conséquent, cette requête est nettement plus rapide que celle sur la table Personnages, malgré le fait que le Planning Time est inférieur sur cette dernière.
 
 --3.INSERT
 
