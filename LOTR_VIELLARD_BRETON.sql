@@ -272,6 +272,14 @@ group by p.nomPers having count(distinct c.numlivre)=3;
 
 -- Par conséquent, cette requête est nettement plus rapide que celle sur la table Personnages, malgré le fait que le Planning Time est inférieur sur cette dernière.
 
+--2.INDEX
+--Table Personnages :
+    CREATE
+CREATE INDEX index_Personne ON personnages(nomPers, nomType, anNaiss);
+CREATE INDEX index_Type ON personnages(nomType, tailleMoy, imberbe);
+CREATE INDEX index_Livre ON personnages(numChap, numLivre, titre);
+CREATE INDEX index_Caractere ON personnages(nomPers, traitCar, coefCar, numChap, numLivre);
+
 --3.INSERT
 
 INSERT INTO Personne VALUES ('Baptiste','nain',1493);
